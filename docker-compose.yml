@@ -1,0 +1,29 @@
+version: '3'
+services:
+  sample-shard1:
+    image: "akka-sample-sharding:1.0"
+    environment:
+      CLUSTER_NODE_HOST: 'sample-shard1'
+      CLUSTER_NODE_PORT: '2551'
+      CLUSTER_SEED1: 'sample-shard1:2551'
+
+  sample-shard2:
+    image: "akka-sample-sharding:1.0"
+    environment:
+      CLUSTER_NODE_HOST: 'sample-shard2'
+      CLUSTER_NODE_PORT: '2551'
+      CLUSTER_SEED1: 'sample-shard1:2551'
+    depends_on:
+      - sample-shard1
+
+  sample-api:
+    image: "akka-sample-api:1.0"
+    ports:
+      - "8080:8080"
+    environment:
+      CLUSTER_NODE_HOST: 'sample-api'
+      CLUSTER_NODE_PORT: '2551'
+      CLUSTER_SEED1: 'sample-shard1:2551'
+    depends_on:
+      - sample-shard1
+
