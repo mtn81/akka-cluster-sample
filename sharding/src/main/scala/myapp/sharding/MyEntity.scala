@@ -1,6 +1,6 @@
 package myapp.sharding
 
-import akka.actor.{Actor, Props}
+import akka.actor.{Actor, ActorRef, DeadLetter, Props}
 import akka.cluster.sharding.ShardRegion
 import akka.cluster.sharding.ShardRegion.HashCodeMessageExtractor
 
@@ -8,6 +8,11 @@ class MyEntity extends Actor {
   import MyEntity._
 
   var status: Int = 0
+
+  val subTasks = Map[Class[_], ActorRef](
+    classOf[Get1] -> context.actorOf(Props[SubTask1]),
+    classOf[Get2] -> context.actorOf(Props[SubTask2]),
+  )
 
   override def receive: Receive = {
     case Get(id) =>
@@ -18,6 +23,16 @@ class MyEntity extends Actor {
       println(s"process Update in $self")
       status += 1
       sender() ! UpdateReply(id)
+
+    case msg @ UpdateTask(id) =>
+      subTasks.values.foreach { a =>
+        a ! msg
+      }
+      sender() ! UpdateTaskReply(id)
+
+    case msg => {
+      subTasks.getOrElse(msg.getClass, throw new UnsupportedOperationException) forward msg
+    }
   }
 }
 
@@ -29,6 +44,16 @@ object MyEntity {
 
   case class Get(id: Long)
   case class GetReply(id: Long, status: Int)
+
+
+  case class UpdateTask(id: Long)
+  case class UpdateTaskReply(id: Long)
+
+  case class Get1(id: Long)
+  case class Get1Reply(id: Long, state: Int)
+
+  case class Get2(id: Long)
+  case class Get2Reply(id: Long, state: Long)
 
   private val msgExtractor = new HashCodeMessageExtractor(100) {
     override def entityId(message: Any): String = message match {
